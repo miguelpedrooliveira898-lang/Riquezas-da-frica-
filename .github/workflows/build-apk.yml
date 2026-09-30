@@ -1,0 +1,54 @@
+name: Gerar APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar arquivos
+        uses: actions/checkout@v4
+
+      - name: Extrair projeto
+        run: |
+          mkdir projeto
+          unzip -q riquezas-da-africa-apk-github.zip -d projeto
+          cd projeto
+          find . -maxdepth 2 -type f | head -30
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: projeto/package-lock.json
+
+      - name: Instalar dependências
+        working-directory: projeto
+        run: npm ci
+
+      - name: Gerar aplicação web
+        working-directory: projeto
+        run: npm run build
+
+      - name: Criar projeto Android
+        working-directory: projeto
+        run: npx cap add android
+
+      - name: Sincronizar Capacitor
+        working-directory: projeto
+        run: npx cap sync android
+
+      - name: Compilar APK
+        working-directory: projeto/android
+        run: ./gradlew assembleDebug
+
+      - name: Disponibilizar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: riquezas-da-africa-apk
+          path: projeto/android/app/build/outputs/apk/debug/app-debug.apk
