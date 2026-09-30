@@ -23,11 +23,11 @@ jobs:
 
       - name: Instalar dependências
         working-directory: projeto
-        run: npm install
+        run: npm install --include=dev
 
       - name: Gerar site
         working-directory: projeto
-        run: npm run build
+        run: npx vite build
 
       - name: Configurar Java
         uses: actions/setup-java@v4
