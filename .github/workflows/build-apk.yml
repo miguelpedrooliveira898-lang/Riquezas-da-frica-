@@ -53,16 +53,51 @@ jobs:
         working-directory: projeto
         run: npx cap add android
 
+      - name: Configurar nome e ícone do aplicativo
+        working-directory: projeto
+        run: |
+          python3 - <<'PY'
+          import json
+
+          path = "capacitor.config.json"
+
+          with open(path, "r", encoding="utf-8") as f:
+              config = json.load(f)
+
+          config["appName"] = "Riquezas da África"
+          config["appId"] = "com.riquezasdaafrica.app"
+
+          with open(path, "w", encoding="utf-8") as f:
+              json.dump(config, f, ensure_ascii=False, indent=2)
+
+          PY
+
       - name: Sincronizar Capacitor
         working-directory: projeto
         run: npx cap sync android
+
+      - name: Configurar nome no Android
+        working-directory: projeto
+        run: |
+          sed -i 's#<string name="app_name">.*</string>#<string name="app_name">Riquezas da África</string>#' android/app/src/main/res/values/strings.xml
+
+      - name: Configurar ícones
+        working-directory: projeto
+        run: |
+          mkdir -p android/app/src/main/res/drawable
+          cp public/icons/icon-192.png android/app/src/main/res/drawable/icon.png
 
       - name: Gerar APK
         working-directory: projeto/android
         run: ./gradlew assembleDebug
 
+      - name: Renomear APK
+        run: |
+          cp projeto/android/app/build/outputs/apk/debug/app-debug.apk \
+             projeto/android/app/build/outputs/apk/debug/Riquezas-da-Africa.apk
+
       - name: Disponibilizar APK
         uses: actions/upload-artifact@v4
         with:
-          name: riquezas-da-africa-apk
-          path: projeto/android/app/build/outputs/apk/debug/app-debug.apk
+          name: Riquezas-da-Africa
+          path: projeto/android/app/build/outputs/apk/debug/Riquezas-da-Africa.apk
