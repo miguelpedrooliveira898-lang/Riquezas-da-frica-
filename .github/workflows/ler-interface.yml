@@ -1,10 +1,10 @@
-name: Ler arquivos da interface
+name: Encontrar codigo do mapa
 
 on:
   workflow_dispatch:
 
 jobs:
-  ler:
+  procurar:
     runs-on: ubuntu-latest
 
     steps:
@@ -21,33 +21,33 @@ jobs:
         run: |
           MAIN=$(find projeto -type f -name "main.jsx" | head -n 1)
           CSS=$(find projeto -type f -name "styles.css" | head -n 1)
-          CAP=$(find projeto -type f -name "capacitor.config.json" | head -n 1)
-
-          echo "MAIN=$MAIN"
-          echo "CSS=$CSS"
-          echo "CAP=$CAP"
 
           echo "main=$MAIN" >> "$GITHUB_OUTPUT"
           echo "css=$CSS" >> "$GITHUB_OUTPUT"
-          echo "cap=$CAP" >> "$GITHUB_OUTPUT"
 
-      - name: Mostrar main.jsx
-        run: |
-          echo "========================================"
-          echo "===== MAIN.JSX ====="
-          echo "========================================"
-          cat "${{ steps.localizar.outputs.main }}"
+          echo "MAIN: $MAIN"
+          echo "CSS: $CSS"
 
-      - name: Mostrar styles.css
+      - name: Procurar codigo do mapa no main.jsx
         run: |
-          echo "========================================"
-          echo "===== STYLES.CSS ====="
-          echo "========================================"
-          cat "${{ steps.localizar.outputs.css }}"
+          echo "=========================================="
+          echo "TRECHOS RELACIONADOS AO MAPA"
+          echo "=========================================="
 
-      - name: Mostrar capacitor.config.json
+          grep -in -E \
+          -B 8 -A 15 \
+          "marker|point|map|drag|touch|pointer|position|start|leaflet|svg" \
+          "${{ steps.localizar.outputs.main }}" \
+          | head -n 1200 || true
+
+      - name: Procurar estilos dos pontos e mapa
         run: |
-          echo "========================================"
-          echo "===== CAPACITOR.CONFIG.JSON ====="
-          echo "========================================"
-          cat "${{ steps.localizar.outputs.cap }}"
+          echo "=========================================="
+          echo "TRECHOS RELACIONADOS AOS PONTOS/MAPA NO CSS"
+          echo "=========================================="
+
+          grep -in -E \
+          -B 8 -A 15 \
+          "marker|point|map|drag|touch|pointer|position|start|leaflet|svg" \
+          "${{ steps.localizar.outputs.css }}" \
+          | head -n 1200 || true
