@@ -13,24 +13,24 @@ jobs:
 
       - name: Extrair projeto
         run: |
-          mkdir projeto
-          unzip -q riquezas-da-africa-apk-github.zip -d projeto
+          mkdir -p projeto
+          unzip -q riquezas-da-africa-apk.github.zip -d projeto
 
       - name: Configurar Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+          cache-dependency-path: projeto/package-lock.json
 
       - name: Instalar dependências
         working-directory: projeto
         run: |
-          npm install --include=dev --no-audit --no-fund
-          npm install vite@6.0.7 @vitejs/plugin-react@4.3.4 --save-dev --no-audit --no-fund
+          npm install --legacy-peer-deps --include=dev --no-audit --no-fund
 
       - name: Gerar site
         working-directory: projeto
-        run: |
-          npx vite build
+        run: npm run build
 
       - name: Configurar Java
         uses: actions/setup-java@v4
@@ -43,19 +43,15 @@ jobs:
 
       - name: Criar projeto Android
         working-directory: projeto
-        run: |
-          npx cap add android
+        run: npx cap add android
 
       - name: Sincronizar Capacitor
         working-directory: projeto
-        run: |
-          npx cap sync android
+        run: npx cap sync android
 
       - name: Gerar APK
         working-directory: projeto/android
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug
+        run: ./gradlew assembleDebug
 
       - name: Disponibilizar APK
         uses: actions/upload-artifact@v4
