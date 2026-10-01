@@ -1,0 +1,53 @@
+name: Ler arquivos da interface
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ler:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar repositorio
+        uses: actions/checkout@v4
+
+      - name: Extrair projeto
+        run: |
+          rm -rf projeto
+          unzip -o "riquezas-da-africa-apk-github.zip" -d projeto
+
+      - name: Localizar arquivos
+        id: localizar
+        run: |
+          MAIN=$(find projeto -type f -name "main.jsx" | head -n 1)
+          CSS=$(find projeto -type f -name "styles.css" | head -n 1)
+          CAP=$(find projeto -type f -name "capacitor.config.json" | head -n 1)
+
+          echo "MAIN=$MAIN"
+          echo "CSS=$CSS"
+          echo "CAP=$CAP"
+
+          echo "main=$MAIN" >> "$GITHUB_OUTPUT"
+          echo "css=$CSS" >> "$GITHUB_OUTPUT"
+          echo "cap=$CAP" >> "$GITHUB_OUTPUT"
+
+      - name: Mostrar main.jsx
+        run: |
+          echo "========================================"
+          echo "===== MAIN.JSX ====="
+          echo "========================================"
+          cat "${{ steps.localizar.outputs.main }}"
+
+      - name: Mostrar styles.css
+        run: |
+          echo "========================================"
+          echo "===== STYLES.CSS ====="
+          echo "========================================"
+          cat "${{ steps.localizar.outputs.css }}"
+
+      - name: Mostrar capacitor.config.json
+        run: |
+          echo "========================================"
+          echo "===== CAPACITOR.CONFIG.JSON ====="
+          echo "========================================"
+          cat "${{ steps.localizar.outputs.cap }}"
