@@ -27,18 +27,7 @@ jobs:
           rm -rf node_modules
           rm -f package-lock.json
           npm install --include=dev --legacy-peer-deps --no-audit --no-fund
-
-      - name: Instalar Vite diretamente
-        working-directory: projeto
-        run: |
           npm install vite@6.0.7 @vitejs/plugin-react@4.3.4 --save-dev --legacy-peer-deps --no-audit --no-fund
-
-      - name: Verificar Vite
-        working-directory: projeto
-        run: |
-          echo "=== VITE ==="
-          ls -la node_modules/.bin/
-          npx vite --version
 
       - name: Gerar site
         working-directory: projeto
@@ -50,8 +39,15 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Configurar Android
+      - name: Configurar Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+
+      - name: Instalar componentes Android
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Criar projeto Android
         working-directory: projeto
