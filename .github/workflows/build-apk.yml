@@ -16,6 +16,11 @@ jobs:
           mkdir -p projeto
           unzip -q riquezas-da-africa-apk-github.zip -d projeto
 
+      - name: Mostrar package.json
+        run: |
+          echo "=== PACKAGE.JSON ==="
+          cat projeto/package.json
+
       - name: Configurar Node
         uses: actions/setup-node@v4
         with:
@@ -32,36 +37,4 @@ jobs:
         run: |
           echo "=== VITE ==="
           ls -la node_modules/.bin/vite || true
-          echo "=== VERSÃO ==="
-          ./node_modules/.bin/vite --version
-
-      - name: Gerar site
-        working-directory: projeto
-        run: npm run build
-
-      - name: Configurar Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      - name: Configurar Android
-        uses: android-actions/setup-android@v3
-
-      - name: Criar projeto Android
-        working-directory: projeto
-        run: npx cap add android
-
-      - name: Sincronizar Capacitor
-        working-directory: projeto
-        run: npx cap sync android
-
-      - name: Gerar APK
-        working-directory: projeto/android
-        run: ./gradlew assembleDebug
-
-      - name: Disponibilizar APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: riquezas-da-africa-apk
-          path: projeto/android/app/build/outputs/apk/debug/app-debug.apk
+          echo "=== VERS
