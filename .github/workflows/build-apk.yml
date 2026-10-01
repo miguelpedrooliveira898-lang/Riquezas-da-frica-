@@ -24,7 +24,12 @@ jobs:
       - name: Instalar dependências
         working-directory: projeto
         run: |
-          npm install --legacy-peer-deps --include=dev --no-audit --no-fund
+          npm install --include=dev --legacy-peer-deps --no-audit --no-fund
+          npm install --save-dev vite@5.0.7 @vitejs/plugin-react@4.3.4 --legacy-peer-deps --no-audit --no-fund
+
+      - name: Verificar Vite
+        working-directory: projeto
+        run: npx vite --version
 
       - name: Gerar site
         working-directory: projeto
