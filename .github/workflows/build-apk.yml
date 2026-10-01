@@ -21,43 +21,16 @@ jobs:
         with:
           node-version: 20
 
-      - name: Instalar dependências
-        working-directory: projeto
+      - name: Ver estrutura do projeto
         run: |
-          npm install --include=dev --legacy-peer-deps --no-audit --no-fund
+          echo "=== CONTEÚDO DE projeto ==="
+          find projeto -maxdepth 3 -type f | sort
+          echo "=== PACKAGE.JSON ==="
+          find projeto -name package.json -print
+
+      - name: Instalar dependências
+        run: |
+          PASTA=$(dirname "$(find projeto -name package.json -print -quit)")
+          cd "$PASTA"
+          npm install --legacy-peer-deps --include=dev --no-audit --no-fund
           npm install --save-dev vite@5.0.7 @vitejs/plugin-react@4.3.4 --legacy-peer-deps --no-audit --no-fund
-
-      - name: Verificar Vite
-        working-directory: projeto
-        run: npx vite --version
-
-      - name: Gerar site
-        working-directory: projeto
-        run: npm run build
-
-      - name: Configurar Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      - name: Configurar Android
-        uses: android-actions/setup-android@v3
-
-      - name: Criar projeto Android
-        working-directory: projeto
-        run: npx cap add android
-
-      - name: Sincronizar Capacitor
-        working-directory: projeto
-        run: npx cap sync android
-
-      - name: Gerar APK
-        working-directory: projeto/android
-        run: ./gradlew assembleDebug
-
-      - name: Disponibilizar APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: riquezas-da-africa-apk
-          path: projeto/android/app/build/outputs/apk/debug/app-debug.apk
