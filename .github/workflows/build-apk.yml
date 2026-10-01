@@ -34,7 +34,6 @@ jobs:
 
           if [ -f package.json ]; then
             echo "Projeto encontrado diretamente na raiz."
-
           else
             echo "package.json não está na raiz."
             echo "Procurando ZIP..."
@@ -67,15 +66,12 @@ jobs:
             echo "Projeto encontrado em:"
             echo "$PROJECT_DIR"
 
-            # Remove arquivos antigos da raiz,
-            # preservando .git, o ZIP e a pasta temporária.
             find . -maxdepth 1 -mindepth 1 \
               ! -name ".git" \
               ! -name "$(basename "$ZIP")" \
               ! -name "_projeto" \
               -exec rm -rf {} +
 
-            # Copia a V2 para a raiz
             cp -a "$PROJECT_DIR"/. .
 
             rm -rf _projeto
@@ -179,9 +175,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y imagemagick
 
-          echo "ImageMagick instalado."
+          echo "Verificando ImageMagick..."
 
-          magick --version
+          convert --version
 
       # ============================================================
       # 10. Criar projeto Android
@@ -217,23 +213,23 @@ jobs:
 
           echo "Gerando ícones..."
 
-          magick public/icons/icon-512.png \
+          convert public/icons/icon-512.png \
             -resize 48x48 \
             "$RES/mipmap-mdpi/ic_launcher.png"
 
-          magick public/icons/icon-512.png \
+          convert public/icons/icon-512.png \
             -resize 72x72 \
             "$RES/mipmap-hdpi/ic_launcher.png"
 
-          magick public/icons/icon-512.png \
+          convert public/icons/icon-512.png \
             -resize 96x96 \
             "$RES/mipmap-xhdpi/ic_launcher.png"
 
-          magick public/icons/icon-512.png \
+          convert public/icons/icon-512.png \
             -resize 144x144 \
             "$RES/mipmap-xxhdpi/ic_launcher.png"
 
-          magick public/icons/icon-512.png \
+          convert public/icons/icon-512.png \
             -resize 192x192 \
             "$RES/mipmap-xxxhdpi/ic_launcher.png"
 
@@ -261,7 +257,7 @@ jobs:
           echo "Identidade Android aplicada."
 
       # ============================================================
-      # 13. Verificar Android
+      # 13. Verificar arquivos Android
       # ============================================================
       - name: Verificar arquivos Android
         shell: bash
