@@ -14,30 +14,18 @@ jobs:
       contents: read
 
     steps:
-
-      # ============================================================
-      # 1. Baixar projeto
-      # ============================================================
       - name: Baixar projeto
         uses: actions/checkout@v4
 
-      # ============================================================
-      # 2. Preparar projeto
-      # ============================================================
       - name: Preparar projeto
         shell: bash
         run: |
           set -e
-
-          echo "Conteúdo do repositório:"
           ls -la
 
           if [ -f package.json ]; then
             echo "Projeto encontrado diretamente na raiz."
           else
-            echo "package.json não está na raiz."
-            echo "Procurando ZIP..."
-
             ZIP=$(find . -maxdepth 3 -type f -name "*.zip" | head -n 1)
 
             if [ -z "$ZIP" ]; then
@@ -49,10 +37,7 @@ jobs:
 
             rm -rf _projeto
             mkdir -p _projeto
-
             unzip -q "$ZIP" -d _projeto
-
-            echo "Procurando package.json dentro do ZIP..."
 
             PACKAGE_JSON=$(find _projeto -type f -name "package.json" | head -n 1)
 
@@ -63,8 +48,7 @@ jobs:
 
             PROJECT_DIR=$(dirname "$PACKAGE_JSON")
 
-            echo "Projeto encontrado em:"
-            echo "$PROJECT_DIR"
+            echo "Projeto encontrado em: $PROJECT_DIR"
 
             find . -maxdepth 1 -mindepth 1 \
               ! -name ".git" \
@@ -75,11 +59,7 @@ jobs:
             cp -a "$PROJECT_DIR"/. .
 
             rm -rf _projeto
-
-            echo "Projeto V2 colocado na raiz."
           fi
-
-          echo "Verificando arquivos principais..."
 
           test -f package.json
           test -f src/main.jsx
@@ -87,19 +67,13 @@ jobs:
           test -f public/world-map.svg
           test -f public/icons/icon-512.png
 
-          echo "Tudo certo."
+          echo "Projeto validado."
 
-      # ============================================================
-      # 3. Configurar Node.js
-      # ============================================================
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      # ============================================================
-      # 4. Instalar dependências
-      # ============================================================
       - name: Instalar dependencias
         shell: bash
         run: |
@@ -122,34 +96,20 @@ jobs:
             --no-audit \
             --no-fund
 
-          echo "Dependências instaladas."
-
-      # ============================================================
-      # 5. Gerar site
-      # ============================================================
       - name: Gerar site
         run: npm run build
 
-      # ============================================================
-      # 6. Configurar Java
-      # ============================================================
       - name: Configurar Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
 
-      # ============================================================
-      # 7. Configurar Android SDK
-      # ============================================================
       - name: Configurar Android SDK
         uses: android-actions/setup-android@v3
         with:
           packages: "platform-tools platforms;android-35 build-tools;35.0.0"
 
-      # ============================================================
-      # 8. Instalar componentes Android
-      # ============================================================
       - name: Instalar componentes Android
         shell: bash
         run: |
@@ -162,11 +122,6 @@ jobs:
             "platforms;android-35" \
             "build-tools;35.0.0"
 
-          echo "Android SDK configurado."
-
-      # ============================================================
-      # 9. Instalar ImageMagick
-      # ============================================================
       - name: Instalar ImageMagick
         shell: bash
         run: |
@@ -175,27 +130,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y imagemagick
 
-          echo "Verificando ImageMagick..."
-
           convert --version
 
-      # ============================================================
-      # 10. Criar projeto Android
-      # ============================================================
       - name: Criar projeto Android
-        run: |
-          npx cap add android
+        run: npx cap add android
 
-      # ============================================================
-      # 11. Sincronizar Capacitor
-      # ============================================================
       - name: Sincronizar Capacitor
-        run: |
-          npx cap sync android
+        run: npx cap sync android
 
-      # ============================================================
-      # 12. Aplicar identidade Android
-      # ============================================================
       - name: Aplicar identidade Android
         shell: bash
         run: |
@@ -203,15 +145,14 @@ jobs:
 
           RES="android/app/src/main/res"
 
-          mkdir -p "$RES/mipmap-mdpi"
-          mkdir -p "$RES/mipmap-hdpi"
-          mkdir -p "$RES/mipmap-xhdpi"
-          mkdir -p "$RES/mipmap-xxhdpi"
-          mkdir -p "$RES/mipmap-xxxhdpi"
+          mkdir -p \
+            "$RES/mipmap-mdpi" \
+            "$RES/mipmap-hdpi" \
+            "$RES/mipmap-xhdpi" \
+            "$RES/mipmap-xxhdpi" \
+            "$RES/mipmap-xxxhdpi"
 
           test -f public/icons/icon-512.png
-
-          echo "Gerando ícones..."
 
           convert public/icons/icon-512.png \
             -resize 48x48 \
@@ -233,20 +174,25 @@ jobs:
             -resize 192x192 \
             "$RES/mipmap-xxxhdpi/ic_launcher.png"
 
-          cp "$RES/mipmap-mdpi/ic_launcher.png" \
-             "$RES/mipmap-mdpi/ic_launcher_round.png"
+          cp \
+            "$RES/mipmap-mdpi/ic_launcher.png" \
+            "$RES/mipmap-mdpi/ic_launcher_round.png"
 
-          cp "$RES/mipmap-hdpi/ic_launcher.png" \
-             "$RES/mipmap-hdpi/ic_launcher_round.png"
+          cp \
+            "$RES/mipmap-hdpi/ic_launcher.png" \
+            "$RES/mipmap-hdpi/ic_launcher_round.png"
 
-          cp "$RES/mipmap-xhdpi/ic_launcher.png" \
-             "$RES/mipmap-xhdpi/ic_launcher_round.png"
+          cp \
+            "$RES/mipmap-xhdpi/ic_launcher.png" \
+            "$RES/mipmap-xhdpi/ic_launcher_round.png"
 
-          cp "$RES/mipmap-xxhdpi/ic_launcher.png" \
-             "$RES/mipmap-xxhdpi/ic_launcher_round.png"
+          cp \
+            "$RES/mipmap-xxhdpi/ic_launcher.png" \
+            "$RES/mipmap-xxhdpi/ic_launcher_round.png"
 
-          cp "$RES/mipmap-xxxhdpi/ic_launcher.png" \
-             "$RES/mipmap-xxxhdpi/ic_launcher_round.png"
+          cp \
+            "$RES/mipmap-xxxhdpi/ic_launcher.png" \
+            "$RES/mipmap-xxxhdpi/ic_launcher_round.png"
 
           STRINGS="android/app/src/main/res/values/strings.xml"
 
@@ -254,68 +200,29 @@ jobs:
             's#<string name="app_name">.*</string>#<string name="app_name">Riquezas da África</string>#' \
             "$STRINGS"
 
-          echo "Identidade Android aplicada."
-
-      # ============================================================
-      # 13. Verificar arquivos Android
-      # ============================================================
       - name: Verificar arquivos Android
         shell: bash
         run: |
           set -e
 
-          test -f android/app/src/main/res/mipmap-mdpi/ic_launcher.png
-          test -f android/app/src/main/res/mipmap-hdpi/ic_launcher.png
-          test -f android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
-          test -f android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
           test -f android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
-
-          test -f android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
-          test -f android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
-          test -f android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
-          test -f android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
           test -f android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
 
-          grep -q "Riquezas da África" \
+          grep -q \
+            "Riquezas da África" \
             android/app/src/main/res/values/strings.xml
 
-          echo "Todos os arquivos Android estão corretos."
-
-      # ============================================================
-      # 14. Gerar APK
-      # ============================================================
       - name: Gerar APK
         working-directory: android
-        shell: bash
         run: |
-          set -e
-
-          echo "Iniciando compilação do APK..."
-
           ./gradlew assembleDebug --no-daemon
 
-          echo "APK compilado."
-
-      # ============================================================
-      # 15. Renomear APK
-      # ============================================================
       - name: Renomear APK
-        shell: bash
         run: |
-          set -e
+          cp \
+            android/app/build/outputs/apk/debug/app-debug.apk \
+            Riquezas-da-Africa.apk
 
-          APK="android/app/build/outputs/apk/debug/app-debug.apk"
-
-          test -f "$APK"
-
-          cp "$APK" Riquezas-da-Africa.apk
-
-          echo "APK final:"
-          ls -lh Riquezas-da-Africa.apk
-
-      # ============================================================
-      # 16. Disponibilizar APK
-      # ============================================================
       - name: Disponibilizar APK
         uses: actions/upload-artifact@v4
         with:
