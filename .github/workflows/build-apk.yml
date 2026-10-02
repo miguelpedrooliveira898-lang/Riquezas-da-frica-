@@ -30,8 +30,15 @@ jobs:
         run: |
           set -e
 
-          echo "Arquivos encontrados:"
+          echo "=========================================="
+          echo "VERIFICANDO PROJETO"
+          echo "=========================================="
+
           ls -la
+
+          # --------------------------------------------------------
+          # Caso package.json já esteja na raiz
+          # --------------------------------------------------------
 
           if [ -f package.json ]; then
 
@@ -40,12 +47,12 @@ jobs:
           else
 
             echo "package.json não está na raiz."
-            echo "Procurando ZIP..."
+            echo "Procurando arquivo ZIP..."
 
             ZIP=$(find . -maxdepth 3 -type f -iname "*.zip" | head -n 1)
 
             if [ -z "$ZIP" ]; then
-              echo "ERRO: não encontrei package.json nem ZIP."
+              echo "ERRO: não encontrei package.json nem arquivo ZIP."
               exit 1
             fi
 
@@ -66,49 +73,84 @@ jobs:
 
             PROJECT_DIR=$(dirname "$PACKAGE_JSON")
 
-            echo "Projeto localizado em:"
+            echo "Diretório do projeto:"
             echo "$PROJECT_DIR"
 
+            # Remove o conteúdo que não pertence ao projeto
             find . -maxdepth 1 -mindepth 1 \
               ! -name ".git" \
               ! -name "_projeto" \
               ! -name "$(basename "$ZIP")" \
               -exec rm -rf {} +
 
+            # Copia o projeto verdadeiro para a raiz
             cp -a "$PROJECT_DIR"/. .
 
             rm -rf _projeto
 
           fi
 
-          echo "Verificando arquivos principais..."
+
+          # --------------------------------------------------------
+          # Verificação dos arquivos essenciais
+          # --------------------------------------------------------
+
+          echo ""
+          echo "Verificando arquivos essenciais..."
 
           test -f package.json
           test -f index.html
           test -f src/main.jsx
           test -f src/styles.css
           test -f public/icons/icon-512.png
+          test -f capacitor.config.json
 
-          echo "Projeto preparado."
+          echo ""
+          echo "Projeto preparado com sucesso."
 
 
       # ============================================================
-      # 3. NODE
+      # 3. CONFIGURAR NODE.JS
       # ============================================================
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          node-version: "20"
 
 
       # ============================================================
-      # 4. INSTALAR DEPENDÊNCIAS
+      # 4. VERIFICAR NODE
+      # ============================================================
+      - name: Verificar Node.js
+        shell: bash
+        run: |
+          set -e
+
+          echo "Node:"
+          node --version
+
+          echo ""
+          echo "NPM:"
+          npm --version
+
+
+      # ============================================================
+      # 5. INSTALAR DEPENDÊNCIAS
       # ============================================================
       - name: Instalar dependências
         shell: bash
         run: |
           set -e
+
+          echo "=========================================="
+          echo "INSTALANDO DEPENDÊNCIAS"
+          echo "=========================================="
+
+          rm -rf node_modules
+
+          # O workflow não depende de package-lock.json.
+          # Isso evita o erro do setup-node caso o projeto
+          # tenha sido enviado apenas com package.json.
 
           npm install \
             --include=dev \
@@ -116,6 +158,7 @@ jobs:
             --no-audit \
             --no-fund
 
+          # Garante versões compatíveis com o projeto.
           npm install \
             vite@6.0.7 \
             @vitejs/plugin-react@4.3.4 \
@@ -124,26 +167,35 @@ jobs:
             --no-audit \
             --no-fund
 
+          echo ""
           echo "Dependências instaladas."
 
 
       # ============================================================
-      # 5. BUILD WEB
+      # 6. GERAR A APLICAÇÃO WEB
       # ============================================================
       - name: Gerar aplicação web
         shell: bash
         run: |
           set -e
 
+          echo "=========================================="
+          echo "GERANDO BUILD WEB"
+          echo "=========================================="
+
           npm run build
 
           test -d dist
+          test -f dist/index.html
 
+          echo ""
           echo "Build web concluído."
+
+          ls -la dist
 
 
       # ============================================================
-      # 6. JAVA 21
+      # 7. CONFIGURAR JAVA 21
       # ============================================================
       - name: Configurar Java 21
         uses: actions/setup-java@v4
@@ -153,7 +205,18 @@ jobs:
 
 
       # ============================================================
-      # 7. ANDROID SDK
+      # 8. VERIFICAR JAVA
+      # ============================================================
+      - name: Verificar Java
+        shell: bash
+        run: |
+          set -e
+
+          java -version
+
+
+      # ============================================================
+      # 9. CONFIGURAR ANDROID SDK
       # ============================================================
       - name: Configurar Android SDK
         uses: android-actions/setup-android@v4
@@ -164,47 +227,48 @@ jobs:
 
 
       # ============================================================
-      # 8. INSTALAR SDK NECESSÁRIO
+      # 10. INSTALAR COMPONENTES ANDROID
       # ============================================================
       - name: Instalar componentes Android
         shell: bash
         run: |
           set -e
 
+          echo "=========================================="
+          echo "INSTALANDO ANDROID SDK"
+          echo "=========================================="
+
           sdkmanager \
             "platform-tools" \
             "platforms;android-35" \
             "build-tools;35.0.0"
 
-          echo "Android SDK preparado."
+          echo ""
+          echo "Android SDK instalado."
 
 
       # ============================================================
-      # 9. VERIFICAR SDK
+      # 11. VERIFICAR ANDROID SDK
       # ============================================================
       - name: Verificar Android SDK
         shell: bash
         run: |
           set -e
 
-          echo "Java:"
-          java -version
+          echo "ANDROID_SDK_ROOT:"
+          echo "$ANDROID_SDK_ROOT"
 
           echo ""
           echo "ADB:"
           adb version
 
           echo ""
-          echo "SDK:"
+          echo "Componentes instalados:"
           sdkmanager --list_installed | head -100
-
-          echo ""
-          echo "ANDROID_SDK_ROOT:"
-          echo "$ANDROID_SDK_ROOT"
 
 
       # ============================================================
-      # 10. IMAGEMAGICK
+      # 12. INSTALAR IMAGEMAGICK
       # ============================================================
       - name: Instalar ImageMagick
         shell: bash
@@ -212,42 +276,63 @@ jobs:
           set -e
 
           sudo apt-get update
+
           sudo apt-get install -y imagemagick
 
+          echo ""
+          echo "ImageMagick:"
           convert --version
 
 
       # ============================================================
-      # 11. CAPACITOR
+      # 13. CRIAR PROJETO ANDROID COM CAPACITOR
       # ============================================================
       - name: Criar projeto Android
         shell: bash
         run: |
           set -e
 
+          echo "=========================================="
+          echo "CRIANDO PROJETO ANDROID"
+          echo "=========================================="
+
           npx cap add android
 
 
+      # ============================================================
+      # 14. SINCRONIZAR CAPACITOR
+      # ============================================================
       - name: Sincronizar Capacitor
         shell: bash
         run: |
           set -e
 
+          echo "Sincronizando Capacitor..."
+
           npx cap sync android
+
+          echo "Capacitor sincronizado."
 
 
       # ============================================================
-      # 12. CONFIGURAR ÍCONES
+      # 15. GERAR ÍCONES ANDROID
       # ============================================================
       - name: Gerar ícones Android
         shell: bash
         run: |
           set -e
 
+          echo "=========================================="
+          echo "GERANDO ÍCONES"
+          echo "=========================================="
+
           ICON="public/icons/icon-512.png"
           RES="android/app/src/main/res"
 
           test -f "$ICON"
+
+          echo "Ícone original:"
+          file "$ICON"
 
           mkdir -p \
             "$RES/mipmap-mdpi" \
@@ -257,9 +342,9 @@ jobs:
             "$RES/mipmap-xxxhdpi"
 
 
-          # ----------------------------
+          # --------------------------------------------------------
           # Ícones normais
-          # ----------------------------
+          # --------------------------------------------------------
 
           convert "$ICON" \
             -resize 48x48 \
@@ -282,31 +367,37 @@ jobs:
             "$RES/mipmap-xxxhdpi/ic_launcher.png"
 
 
-          # ----------------------------
+          # --------------------------------------------------------
           # Ícones redondos
-          # ----------------------------
+          # --------------------------------------------------------
 
-          cp "$RES/mipmap-mdpi/ic_launcher.png" \
-             "$RES/mipmap-mdpi/ic_launcher_round.png"
+          cp \
+            "$RES/mipmap-mdpi/ic_launcher.png" \
+            "$RES/mipmap-mdpi/ic_launcher_round.png"
 
-          cp "$RES/mipmap-hdpi/ic_launcher.png" \
-             "$RES/mipmap-hdpi/ic_launcher_round.png"
+          cp \
+            "$RES/mipmap-hdpi/ic_launcher.png" \
+            "$RES/mipmap-hdpi/ic_launcher_round.png"
 
-          cp "$RES/mipmap-xhdpi/ic_launcher.png" \
-             "$RES/mipmap-xhdpi/ic_launcher_round.png"
+          cp \
+            "$RES/mipmap-xhdpi/ic_launcher.png" \
+            "$RES/mipmap-xhdpi/ic_launcher_round.png"
 
-          cp "$RES/mipmap-xxhdpi/ic_launcher.png" \
-             "$RES/mipmap-xxhdpi/ic_launcher_round.png"
+          cp \
+            "$RES/mipmap-xxhdpi/ic_launcher.png" \
+            "$RES/mipmap-xxhdpi/ic_launcher_round.png"
 
-          cp "$RES/mipmap-xxxhdpi/ic_launcher.png" \
-             "$RES/mipmap-xxxhdpi/ic_launcher_round.png"
+          cp \
+            "$RES/mipmap-xxxhdpi/ic_launcher.png" \
+            "$RES/mipmap-xxxhdpi/ic_launcher_round.png"
 
 
-          echo "Ícones criados."
+          echo ""
+          echo "Ícones gerados."
 
 
       # ============================================================
-      # 13. NOME DO APP
+      # 16. CONFIGURAR NOME DO APLICATIVO
       # ============================================================
       - name: Configurar nome do aplicativo
         shell: bash
@@ -327,20 +418,17 @@ jobs:
 
 
       # ============================================================
-      # 14. VERIFICAR ÍCONES
+      # 17. VERIFICAR ÍCONES
       # ============================================================
       - name: Verificar ícones
         shell: bash
         run: |
           set -e
 
-          for DIR in \
-            mdpi \
-            hdpi \
-            xhdpi \
-            xxhdpi \
-            xxxhdpi
+          for DIR in mdpi hdpi xhdpi xxhdpi xxxhdpi
           do
+
+            echo "Verificando mipmap-$DIR..."
 
             test -f \
               "android/app/src/main/res/mipmap-$DIR/ic_launcher.png"
@@ -350,13 +438,14 @@ jobs:
 
           done
 
-          echo "Todos os ícones foram verificados."
+          echo ""
+          echo "Todos os ícones estão presentes."
 
 
       # ============================================================
-      # 15. VERIFICAR CAPACITOR
+      # 18. VERIFICAR PROJETO ANDROID
       # ============================================================
-      - name: Verificar projeto Capacitor
+      - name: Verificar projeto Android
         shell: bash
         run: |
           set -e
@@ -369,13 +458,17 @@ jobs:
 
 
       # ============================================================
-      # 16. GERAR APK
+      # 19. GERAR APK
       # ============================================================
       - name: Gerar APK Debug
         working-directory: android
         shell: bash
         run: |
           set -e
+
+          echo "=========================================="
+          echo "COMPILANDO APK"
+          echo "=========================================="
 
           chmod +x gradlew
 
@@ -384,9 +477,12 @@ jobs:
             --no-daemon \
             --stacktrace
 
+          echo ""
+          echo "Gradle terminou."
+
 
       # ============================================================
-      # 17. VERIFICAR APK
+      # 20. VERIFICAR APK
       # ============================================================
       - name: Verificar APK gerado
         shell: bash
@@ -396,16 +492,19 @@ jobs:
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
 
           if [ ! -f "$APK" ]; then
-            echo "ERRO: APK não foi gerado."
+            echo "ERRO: APK não foi encontrado."
             exit 1
           fi
 
-          echo "APK encontrado:"
+          echo "=========================================="
+          echo "APK GERADO COM SUCESSO"
+          echo "=========================================="
+
           ls -lh "$APK"
 
 
       # ============================================================
-      # 18. RENOMEAR APK
+      # 21. COPIAR APK FINAL
       # ============================================================
       - name: Preparar APK final
         shell: bash
@@ -416,11 +515,12 @@ jobs:
             android/app/build/outputs/apk/debug/app-debug.apk \
             Riquezas-da-Africa.apk
 
+          echo "APK final:"
           ls -lh Riquezas-da-Africa.apk
 
 
       # ============================================================
-      # 19. PUBLICAR APK
+      # 22. PUBLICAR APK COMO ARTEFATO
       # ============================================================
       - name: Disponibilizar APK
         uses: actions/upload-artifact@v4
