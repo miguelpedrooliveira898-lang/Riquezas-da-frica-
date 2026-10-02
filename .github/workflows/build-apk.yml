@@ -17,26 +17,36 @@ jobs:
       - name: Baixar projeto
         uses: actions/checkout@v4
 
+      # ============================================================
+      # PREPARAR O PROJETO
+      # ============================================================
       - name: Preparar projeto
         shell: bash
         run: |
           set -e
+
+          echo "Conteúdo inicial:"
           ls -la
 
+          # Se o projeto já estiver na raiz
           if [ -f package.json ]; then
             echo "Projeto encontrado diretamente na raiz."
+
           else
-            ZIP=$(find . -maxdepth 3 -type f -name "*.zip" | head -n 1)
+            # Procurar o ZIP do projeto
+            ZIP=$(find . -maxdepth 3 -type f -iname "*.zip" | head -n 1)
 
             if [ -z "$ZIP" ]; then
-              echo "ERRO: nenhum arquivo ZIP foi encontrado."
+              echo "ERRO: nenhum ZIP ou package.json encontrado."
               exit 1
             fi
 
-            echo "ZIP encontrado: $ZIP"
+            echo "ZIP encontrado:"
+            echo "$ZIP"
 
             rm -rf _projeto
             mkdir -p _projeto
+
             unzip -q "$ZIP" -d _projeto
 
             PACKAGE_JSON=$(find _projeto -type f -name "package.json" | head -n 1)
@@ -48,12 +58,14 @@ jobs:
 
             PROJECT_DIR=$(dirname "$PACKAGE_JSON")
 
-            echo "Projeto encontrado em: $PROJECT_DIR"
+            echo "Diretório do projeto:"
+            echo "$PROJECT_DIR"
 
+            # Remover conteúdo antigo, preservando o Git
             find . -maxdepth 1 -mindepth 1 \
               ! -name ".git" \
-              ! -name "$(basename "$ZIP")" \
               ! -name "_projeto" \
+              ! -name "$(basename "$ZIP")" \
               -exec rm -rf {} +
 
             cp -a "$PROJECT_DIR"/. .
@@ -61,20 +73,24 @@ jobs:
             rm -rf _projeto
           fi
 
+          # Verificações
           test -f package.json
+          test -f index.html
           test -f src/main.jsx
           test -f src/styles.css
-          test -f public/world-map.svg
           test -f public/icons/icon-512.png
 
-          echo "Projeto validado."
+          echo "Projeto preparado com sucesso."
 
+      # ============================================================
+      # NODE
+      # ============================================================
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Instalar dependencias
+      - name: Instalar dependências
         shell: bash
         run: |
           set -e
@@ -88,6 +104,7 @@ jobs:
             --no-audit \
             --no-fund
 
+          # Garantir versões compatíveis
           npm install \
             vite@6.0.7 \
             @vitejs/plugin-react@4.3.4 \
@@ -96,19 +113,35 @@ jobs:
             --no-audit \
             --no-fund
 
-      - name: Gerar site
-        run: npm run build
+      # ============================================================
+      # BUILD WEB
+      # ============================================================
+      - name: Gerar aplicação web
+        shell: bash
+        run: |
+          set -e
 
-      - name: Configurar Java
+          npm run build
+
+          test -d dist
+
+          echo "Build web concluído."
+          ls -la dist
+
+      # ============================================================
+      # JAVA
+      # ============================================================
+      - name: Configurar Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
 
+      # ============================================================
+      # ANDROID SDK
+      # ============================================================
       - name: Configurar Android SDK
         uses: android-actions/setup-android@v3
-        with:
-          packages: "platform-tools platforms;android-35 build-tools;35.0.0"
 
       - name: Instalar componentes Android
         shell: bash
@@ -122,6 +155,9 @@ jobs:
             "platforms;android-35" \
             "build-tools;35.0.0"
 
+      # ============================================================
+      # IMAGEMAGICK
+      # ============================================================
       - name: Instalar ImageMagick
         shell: bash
         run: |
@@ -130,20 +166,41 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y imagemagick
 
+          echo "Versão do ImageMagick:"
           convert --version
 
+      # ============================================================
+      # CAPACITOR
+      # ============================================================
       - name: Criar projeto Android
-        run: npx cap add android
-
-      - name: Sincronizar Capacitor
-        run: npx cap sync android
-
-      - name: Aplicar identidade Android
         shell: bash
         run: |
           set -e
 
+          npx cap add android
+
+      - name: Sincronizar Capacitor
+        shell: bash
+        run: |
+          set -e
+
+          npx cap sync android
+
+      # ============================================================
+      # ÍCONE DO APLICATIVO
+      # ============================================================
+      - name: Gerar ícones Android
+        shell: bash
+        run: |
+          set -e
+
+          ICON="public/icons/icon-512.png"
           RES="android/app/src/main/res"
+
+          test -f "$ICON"
+
+          echo "Ícone encontrado:"
+          file "$ICON"
 
           mkdir -p \
             "$RES/mipmap-mdpi" \
@@ -152,77 +209,113 @@ jobs:
             "$RES/mipmap-xxhdpi" \
             "$RES/mipmap-xxxhdpi"
 
-          test -f public/icons/icon-512.png
-
-          convert public/icons/icon-512.png \
-            -resize 48x48 \
+          # Ícones normais
+          convert "$ICON" -resize 48x48 \
             "$RES/mipmap-mdpi/ic_launcher.png"
 
-          convert public/icons/icon-512.png \
-            -resize 72x72 \
+          convert "$ICON" -resize 72x72 \
             "$RES/mipmap-hdpi/ic_launcher.png"
 
-          convert public/icons/icon-512.png \
-            -resize 96x96 \
+          convert "$ICON" -resize 96x96 \
             "$RES/mipmap-xhdpi/ic_launcher.png"
 
-          convert public/icons/icon-512.png \
-            -resize 144x144 \
+          convert "$ICON" -resize 144x144 \
             "$RES/mipmap-xxhdpi/ic_launcher.png"
 
-          convert public/icons/icon-512.png \
-            -resize 192x192 \
+          convert "$ICON" -resize 192x192 \
             "$RES/mipmap-xxxhdpi/ic_launcher.png"
 
-          cp \
-            "$RES/mipmap-mdpi/ic_launcher.png" \
+          # Ícones redondos
+          convert "$ICON" -resize 48x48 \
             "$RES/mipmap-mdpi/ic_launcher_round.png"
 
-          cp \
-            "$RES/mipmap-hdpi/ic_launcher.png" \
+          convert "$ICON" -resize 72x72 \
             "$RES/mipmap-hdpi/ic_launcher_round.png"
 
-          cp \
-            "$RES/mipmap-xhdpi/ic_launcher.png" \
+          convert "$ICON" -resize 96x96 \
             "$RES/mipmap-xhdpi/ic_launcher_round.png"
 
-          cp \
-            "$RES/mipmap-xxhdpi/ic_launcher.png" \
+          convert "$ICON" -resize 144x144 \
             "$RES/mipmap-xxhdpi/ic_launcher_round.png"
 
-          cp \
-            "$RES/mipmap-xxxhdpi/ic_launcher.png" \
+          convert "$ICON" -resize 192x192 \
             "$RES/mipmap-xxxhdpi/ic_launcher_round.png"
 
-          STRINGS="android/app/src/main/res/values/strings.xml"
+          echo "Ícones gerados."
 
-          sed -i \
-            's#<string name="app_name">.*</string>#<string name="app_name">Riquezas da África</string>#' \
-            "$STRINGS"
-
-      - name: Verificar arquivos Android
+      # ============================================================
+      # NOME DO APP
+      # ============================================================
+      - name: Configurar nome do aplicativo
         shell: bash
         run: |
           set -e
 
+          STRINGS="android/app/src/main/res/values/strings.xml"
+
+          if [ -f "$STRINGS" ]; then
+            sed -i \
+              's#<string name="app_name">.*</string>#<string name="app_name">Riquezas da África</string>#' \
+              "$STRINGS"
+          fi
+
+          echo "Nome configurado."
+
+      # ============================================================
+      # VERIFICAÇÕES ANDROID
+      # ============================================================
+      - name: Verificar Android
+        shell: bash
+        run: |
+          set -e
+
+          test -f android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+          test -f android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+          test -f android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+          test -f android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
           test -f android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+
+          test -f android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+          test -f android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+          test -f android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
+          test -f android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
           test -f android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
 
-          grep -q \
-            "Riquezas da África" \
-            android/app/src/main/res/values/strings.xml
+          echo "Todos os ícones estão presentes."
 
-      - name: Gerar APK
+      # ============================================================
+      # GERAR APK
+      # ============================================================
+      - name: Gerar APK Debug
         working-directory: android
+        shell: bash
         run: |
+          set -e
+
+          chmod +x gradlew
+
           ./gradlew assembleDebug --no-daemon
 
-      - name: Renomear APK
+      # ============================================================
+      # RENOMEAR APK
+      # ============================================================
+      - name: Preparar APK final
+        shell: bash
         run: |
-          cp \
-            android/app/build/outputs/apk/debug/app-debug.apk \
-            Riquezas-da-Africa.apk
+          set -e
 
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+
+          test -f "$APK"
+
+          cp "$APK" Riquezas-da-Africa.apk
+
+          echo "APK gerado:"
+          ls -lh Riquezas-da-Africa.apk
+
+      # ============================================================
+      # DISPONIBILIZAR APK
+      # ============================================================
       - name: Disponibilizar APK
         uses: actions/upload-artifact@v4
         with:
