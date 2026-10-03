@@ -12,25 +12,37 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
+      # ============================================================
+      # 1. BAIXAR O REPOSITÓRIO
+      # ============================================================
       - name: Baixar projeto
         uses: actions/checkout@v4
 
+      # ============================================================
+      # 2. PREPARAR O PROJETO
+      # ============================================================
       - name: Preparar projeto
         shell: bash
         run: |
           set -e
 
-          echo "Arquivos do repositório:"
+          echo "======================================"
+          echo "ARQUIVOS DO REPOSITÓRIO"
+          echo "======================================"
           ls -la
 
+          # Procura um ZIP na raiz do repositório.
           ZIP_FILE=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1 || true)
 
           if [ -n "$ZIP_FILE" ]; then
-            echo "ZIP encontrado: $ZIP_FILE"
+            echo ""
+            echo "ZIP encontrado:"
+            echo "$ZIP_FILE"
 
             mkdir -p _project
             unzip -o "$ZIP_FILE" -d _project
 
+            # Procura o package.json dentro do ZIP.
             PROJECT_DIR=$(find _project \
               -name package.json \
               -type f \
@@ -41,10 +53,18 @@ jobs:
               exit 1
             fi
 
-            echo "Projeto encontrado em: $PROJECT_DIR"
+            echo ""
+            echo "Pasta do projeto:"
+            echo "$PROJECT_DIR"
 
+            # Copia o projeto para a raiz.
             cp -a "$PROJECT_DIR"/. .
           fi
+
+          echo ""
+          echo "======================================"
+          echo "VERIFICANDO PROJETO"
+          echo "======================================"
 
           if [ ! -f package.json ]; then
             echo "ERRO: package.json não encontrado."
@@ -56,23 +76,37 @@ jobs:
             exit 1
           fi
 
-          echo "Projeto preparado."
+          echo "package.json encontrado."
+          echo "capacitor.config.json encontrado."
 
+      # ============================================================
+      # 3. NODE.JS
+      # ============================================================
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
+      # ============================================================
+      # 4. INSTALAR DEPENDÊNCIAS
+      # ============================================================
       - name: Instalar dependências
         run: |
+          set -e
+
           npm install \
             --include=dev \
             --legacy-peer-deps \
             --no-audit \
             --no-fund
 
+      # ============================================================
+      # 5. GARANTIR VITE
+      # ============================================================
       - name: Garantir Vite e React
         run: |
+          set -e
+
           npm install \
             vite@6.0.7 \
             @vitejs/plugin-react@4.3.4 \
@@ -81,8 +115,15 @@ jobs:
             --no-audit \
             --no-fund
 
+      # ============================================================
+      # 6. COMPILAR A APLICAÇÃO WEB
+      # ============================================================
       - name: Compilar aplicação
         run: |
+          set -e
+
+          echo "Executando build..."
+
           npm run build
 
           if [ ! -d dist ]; then
@@ -90,36 +131,70 @@ jobs:
             exit 1
           fi
 
-          echo "Build web concluído."
+          echo ""
+          echo "Build concluído."
+          ls -lah dist
 
+      # ============================================================
+      # 7. JAVA
+      # ============================================================
       - name: Configurar Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
 
+      # ============================================================
+      # 8. ANDROID SDK
+      # ============================================================
       - name: Configurar Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          accept-android-sdk-licenses: "true"
+          log-accepted-android-sdk-licenses: "false"
+          packages: "platform-tools"
 
-      - name: Instalar Android SDK
+      # ============================================================
+      # 9. INSTALAR ANDROID 35
+      # ============================================================
+      - name: Instalar componentes Android
         run: |
-          yes | sdkmanager --licenses >/dev/null || true
+          set -e
+
+          echo "Instalando Android SDK..."
 
           sdkmanager \
-            "platform-tools" \
             "platforms;android-35" \
             "build-tools;35.0.0"
 
+          echo ""
+          echo "Android SDK instalado."
+
+      # ============================================================
+      # 10. IMAGE MAGICK
+      # ============================================================
       - name: Instalar ImageMagick
         run: |
+          set -e
+
           sudo apt-get update
           sudo apt-get install -y imagemagick
 
+          convert --version
+
+      # ============================================================
+      # 11. CAPACITOR ANDROID
+      # ============================================================
       - name: Criar projeto Android
         run: |
+          set -e
+
           npx cap add android
           npx cap sync android
 
+      # ============================================================
+      # 12. ÍCONE DO APLICATIVO
+      # ============================================================
       - name: Configurar ícone Android
         shell: bash
         run: |
@@ -128,9 +203,12 @@ jobs:
           ICON="public/icons/icon-512.png"
 
           if [ ! -f "$ICON" ]; then
-            echo "ERRO: $ICON não encontrado."
+            echo "ERRO: ícone não encontrado:"
+            echo "$ICON"
             exit 1
           fi
+
+          echo "Ícone encontrado."
 
           mkdir -p android/app/src/main/res/mipmap-mdpi
           mkdir -p android/app/src/main/res/mipmap-hdpi
@@ -168,10 +246,15 @@ jobs:
           cp android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png \
              android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
 
-          echo "Ícones configurados."
+          echo "Ícones Android criados."
 
+      # ============================================================
+      # 13. NOME DO APLICATIVO
+      # ============================================================
       - name: Configurar nome do aplicativo
         run: |
+          set -e
+
           mkdir -p android/app/src/main/res/values
 
           cat > android/app/src/main/res/values/strings.xml <<'EOF'
@@ -184,20 +267,41 @@ jobs:
           </resources>
           EOF
 
-      - name: Preparar Gradle
+      # ============================================================
+      # 14. VERIFICAR GRADLE
+      # ============================================================
+      - name: Verificar Gradle
         run: |
+          set -e
+
           cd android
+
           chmod +x gradlew
 
+          ./gradlew --version
+
+      # ============================================================
+      # 15. GERAR APK
+      # ============================================================
       - name: Gerar APK
         run: |
+          set -e
+
           cd android
+
+          chmod +x gradlew
+
           ./gradlew assembleDebug --no-daemon
 
+      # ============================================================
+      # 16. LOCALIZAR APK
+      # ============================================================
       - name: Verificar APK
         shell: bash
         run: |
           set -e
+
+          echo "Procurando APK..."
 
           APK=$(find android/app/build/outputs/apk/debug \
             -type f \
@@ -208,20 +312,35 @@ jobs:
             exit 1
           fi
 
-          echo "APK encontrado:"
+          echo ""
+          echo "======================================"
+          echo "APK ENCONTRADO"
+          echo "======================================"
+
           ls -lh "$APK"
 
-      - name: Preparar artefato
+      # ============================================================
+      # 17. RENOMEAR APK
+      # ============================================================
+      - name: Preparar APK final
         run: |
+          set -e
+
           mkdir -p release
 
           APK=$(find android/app/build/outputs/apk/debug \
             -type f \
             -name "*.apk" | head -n 1)
 
-          cp "$APK" "release/Riquezas-da-Africa-V8.apk"
+          cp "$APK" \
+            "release/Riquezas-da-Africa-V8.apk"
 
-      - name: Disponibilizar APK
+          ls -lh release/
+
+      # ============================================================
+      # 18. DISPONIBILIZAR APK NO GITHUB
+      # ============================================================
+      - name: Enviar APK
         uses: actions/upload-artifact@v4
         with:
           name: Riquezas-da-Africa-V8
