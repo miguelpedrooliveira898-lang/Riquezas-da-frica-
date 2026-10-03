@@ -1,85 +1,163 @@
-      - name: Preparar projeto
+name: Encontrar código do mapa
+
+on:
+  workflow_dispatch:
+
+jobs:
+  procurar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+
+      - name: Extrair projeto
         shell: bash
         run: |
           set -e
 
           echo "======================================"
-          echo "ARQUIVOS DO REPOSITÓRIO"
+          echo "PROCURANDO PROJETO"
           echo "======================================"
-
-          ls -la
-
-          ZIP_FILE=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1 || true)
-
-          if [ -n "$ZIP_FILE" ]; then
-            echo ""
-            echo "ZIP encontrado:"
-            echo "$ZIP_FILE"
-
-            rm -rf _project
-            mkdir -p _project
-
-            unzip -o "$ZIP_FILE" -d _project
-
-            echo ""
-            echo "Conteúdo extraído:"
-            find _project -maxdepth 3 -type f | sort
-
-            PROJECT_DIR=$(find _project \
-              -name package.json \
-              -type f \
-              -printf '%h\n' | head -n 1)
-
-            if [ -z "$PROJECT_DIR" ]; then
-              echo "ERRO: package.json não encontrado."
-              exit 1
-            fi
-
-            echo ""
-            echo "Projeto encontrado em:"
-            echo "$PROJECT_DIR"
-
-            cp -a "$PROJECT_DIR"/. .
-          fi
 
           echo ""
-          echo "======================================"
-          echo "VALIDANDO ESTRUTURA"
-          echo "======================================"
+          echo "Arquivos ZIP encontrados:"
 
-          # package.json é obrigatório
-          if [ ! -f package.json ]; then
-            echo "ERRO: package.json não encontrado na raiz."
-            exit 1
-          fi
+          find . \
+            -maxdepth 2 \
+            -type f \
+            \( -iname "*.zip" -o -iname "*.ZIP" \) \
+            -print
 
-          # Capacitor é obrigatório
-          if [ ! -f capacitor.config.json ]; then
-            echo "ERRO: capacitor.config.json não encontrado."
-            exit 1
-          fi
+          ZIP_FILE=$(find . \
+            -maxdepth 2 \
+            -type f \
+            \( -iname "*.zip" -o -iname "*.ZIP" \) \
+            -print | head -n 1)
 
-          # O mapa precisa existir
-          if [ ! -f public/world-map.svg ]; then
-            echo "ERRO: public/world-map.svg não encontrado."
-            exit 1
-          fi
-
-          # Ícone precisa existir
-          if [ ! -f public/icons/icon-512.png ]; then
-            echo "ERRO: public/icons/icon-512.png não encontrado."
-            exit 1
-          fi
-
-          # A V9 enviada possui o index dentro de public.
-          if [ -f public/index.html ]; then
-            echo "index.html encontrado em public/."
-          elif [ -f index.html ]; then
-            echo "index.html encontrado na raiz."
-          else
-            echo "ERRO: nenhum index.html encontrado."
+          if [ -z "$ZIP_FILE" ]; then
+            echo ""
+            echo "ERRO: nenhum ZIP encontrado."
             exit 1
           fi
 
           echo ""
-          echo "Estrutura validada com sucesso."
+          echo "ZIP selecionado:"
+          echo "$ZIP_FILE"
+
+          rm -rf projeto
+          mkdir -p projeto
+
+          unzip -o "$ZIP_FILE" -d projeto
+
+          echo ""
+          echo "======================================"
+          echo "ARQUIVOS EXTRAÍDOS"
+          echo "======================================"
+
+          find projeto -type f | sort
+
+      - name: Localizar arquivos
+        shell: bash
+        run: |
+          set -e
+
+          echo "======================================"
+          echo "LOCALIZANDO CÓDIGO"
+          echo "======================================"
+
+          echo ""
+          echo "main.jsx:"
+          find projeto \
+            -type f \
+            -name "main.jsx" \
+            -print || true
+
+          echo ""
+          echo "world-map.svg:"
+          find projeto \
+            -type f \
+            -name "world-map.svg" \
+            -print || true
+
+          echo ""
+          echo "styles.css:"
+          find projeto \
+            -type f \
+            -name "styles.css" \
+            -print || true
+
+          echo ""
+          echo "package.json:"
+          find projeto \
+            -type f \
+            -name "package.json" \
+            -print || true
+
+      - name: Procurar código do mapa no main.jsx
+        shell: bash
+        run: |
+          set -e
+
+          MAIN=$(find projeto \
+            -type f \
+            -name "main.jsx" \
+            -print | head -n 1)
+
+          if [ -z "$MAIN" ]; then
+            echo "main.jsx não encontrado."
+            exit 1
+          fi
+
+          echo "Arquivo encontrado:"
+          echo "$MAIN"
+
+          echo ""
+          echo "======================================"
+          echo "TRECHOS RELACIONADOS AO MAPA"
+          echo "======================================"
+
+          grep -n -E \
+            "MapBoard|world-map|marker|zoom|pan|pointer|touch|country|AFRICA" \
+            "$MAIN" \
+            | head -200 || true
+
+      - name: Procurar estilos do mapa
+        shell: bash
+        run: |
+          set -e
+
+          CSS=$(find projeto \
+            -type f \
+            -name "styles.css" \
+            -print | head -n 1)
+
+          if [ -z "$CSS" ]; then
+            echo "styles.css não encontrado."
+            exit 0
+          fi
+
+          echo "Arquivo encontrado:"
+          echo "$CSS"
+
+          echo ""
+          echo "======================================"
+          echo "ESTILOS RELACIONADOS AO MAPA"
+          echo "======================================"
+
+          grep -n -E \
+            "map|marker|country|zoom|pan|touch|pointer" \
+            "$CSS" \
+            | head -250 || true
+
+      - name: Resumo final
+        shell: bash
+        run: |
+          echo ""
+          echo "======================================"
+          echo "BUSCA CONCLUÍDA"
+          echo "======================================"
+
+          echo ""
+          echo "Projeto:"
+          find projeto -maxdepth 4 -type f | sort | head -150
