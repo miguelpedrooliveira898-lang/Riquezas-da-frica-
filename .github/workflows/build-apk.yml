@@ -1,35 +1,3 @@
-name: Build APK - Riquezas da África V9
-
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
-      - master
-
-jobs:
-  build:
-    runs-on: ubuntu-22.04
-
-    steps:
-
-      # ============================================================
-      # 1. BAIXAR REPOSITÓRIO
-      # ============================================================
-      - name: Baixar projeto
-        uses: actions/checkout@v4
-
-      # ============================================================
-      # 2. CONFIGURAR NODE
-      # ============================================================
-      - name: Configurar Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      # ============================================================
-      # 3. PREPARAR PROJETO
-      # ============================================================
       - name: Preparar projeto
         shell: bash
         run: |
@@ -41,11 +9,9 @@ jobs:
 
           ls -la
 
-          # Procura ZIP na raiz
           ZIP_FILE=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1 || true)
 
           if [ -n "$ZIP_FILE" ]; then
-
             echo ""
             echo "ZIP encontrado:"
             echo "$ZIP_FILE"
@@ -57,16 +23,15 @@ jobs:
 
             echo ""
             echo "Conteúdo extraído:"
-            find _project -maxdepth 3 -type f | head -100
+            find _project -maxdepth 3 -type f | sort
 
-            # Encontrar package.json
             PROJECT_DIR=$(find _project \
               -name package.json \
               -type f \
               -printf '%h\n' | head -n 1)
 
             if [ -z "$PROJECT_DIR" ]; then
-              echo "ERRO: package.json não encontrado dentro do ZIP."
+              echo "ERRO: package.json não encontrado."
               exit 1
             fi
 
@@ -74,304 +39,47 @@ jobs:
             echo "Projeto encontrado em:"
             echo "$PROJECT_DIR"
 
-            # Copiar projeto para a raiz
             cp -a "$PROJECT_DIR"/. .
-
           fi
 
           echo ""
           echo "======================================"
-          echo "VALIDAÇÃO"
+          echo "VALIDANDO ESTRUTURA"
           echo "======================================"
 
-          test -f package.json
-          test -f capacitor.config.json
-          test -f index.html
-          test -f public/world-map.svg
-          test -f public/icons/icon-512.png
-
-          echo "Todos os arquivos principais encontrados."
-
-      # ============================================================
-      # 4. INSTALAR DEPENDÊNCIAS
-      # ============================================================
-      - name: Instalar dependências
-        run: |
-          set -e
-
-          npm install \
-            --include=dev \
-            --legacy-peer-deps \
-            --no-audit \
-            --no-fund
-
-      # ============================================================
-      # 5. GARANTIR VITE
-      # ============================================================
-      - name: Garantir Vite
-        run: |
-          set -e
-
-          npm install \
-            vite@6.0.7 \
-            @vitejs/plugin-react@4.3.4 \
-            --save-dev \
-            --legacy-peer-deps \
-            --no-audit \
-            --no-fund
-
-      # ============================================================
-      # 6. INSTALAR IMAGEMAGICK
-      # ============================================================
-      - name: Instalar ImageMagick
-        run: |
-          set -e
-
-          sudo apt-get update
-          sudo apt-get install -y imagemagick
-
-          convert --version
-
-      # ============================================================
-      # 7. COMPILAR WEB
-      # ============================================================
-      - name: Compilar aplicação
-        run: |
-          set -e
-
-          npm run build
-
-          test -d dist
-          test -f dist/index.html
-
-          echo ""
-          echo "Build concluído."
-
-          find dist -maxdepth 2 -type f | sort
-
-      # ============================================================
-      # 8. JAVA
-      # ============================================================
-      - name: Configurar Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: "temurin"
-          java-version: "21"
-
-      # ============================================================
-      # 9. ANDROID SDK
-      # ============================================================
-      - name: Configurar Android SDK
-        uses: android-actions/setup-android@v4
-        with:
-          accept-android-sdk-licenses: "true"
-          log-accepted-android-sdk-licenses: "false"
-          packages: "platform-tools"
-
-      # ============================================================
-      # 10. ANDROID 35
-      # ============================================================
-      - name: Instalar componentes Android
-        run: |
-          set -e
-
-          sdkmanager \
-            "platforms;android-35" \
-            "build-tools;35.0.0"
-
-      # ============================================================
-      # 11. CAPACITOR
-      # ============================================================
-      - name: Criar projeto Android
-        run: |
-          set -e
-
-          npx cap add android
-          npx cap sync android
-
-      # ============================================================
-      # 12. ÍCONE PERSONALIZADO
-      # ============================================================
-      - name: Configurar ícone
-        shell: bash
-        run: |
-          set -e
-
-          ICON="public/icons/icon-512.png"
-          RES="android/app/src/main/res"
-
-          test -f "$ICON"
-
-          echo "Ícone encontrado."
-
-          # Remover ícones adaptativos padrão
-          rm -f "$RES/mipmap-anydpi-v26/ic_launcher.xml"
-          rm -f "$RES/mipmap-anydpi-v26/ic_launcher_round.xml"
-
-          mkdir -p \
-            "$RES/mipmap-mdpi" \
-            "$RES/mipmap-hdpi" \
-            "$RES/mipmap-xhdpi" \
-            "$RES/mipmap-xxhdpi" \
-            "$RES/mipmap-xxxhdpi"
-
-          convert "$ICON" -resize 48x48 \
-            "$RES/mipmap-mdpi/ic_launcher.png"
-
-          convert "$ICON" -resize 72x72 \
-            "$RES/mipmap-hdpi/ic_launcher.png"
-
-          convert "$ICON" -resize 96x96 \
-            "$RES/mipmap-xhdpi/ic_launcher.png"
-
-          convert "$ICON" -resize 144x144 \
-            "$RES/mipmap-xxhdpi/ic_launcher.png"
-
-          convert "$ICON" -resize 192x192 \
-            "$RES/mipmap-xxxhdpi/ic_launcher.png"
-
-          cp "$RES/mipmap-mdpi/ic_launcher.png" \
-             "$RES/mipmap-mdpi/ic_launcher_round.png"
-
-          cp "$RES/mipmap-hdpi/ic_launcher.png" \
-             "$RES/mipmap-hdpi/ic_launcher_round.png"
-
-          cp "$RES/mipmap-xhdpi/ic_launcher.png" \
-             "$RES/mipmap-xhdpi/ic_launcher_round.png"
-
-          cp "$RES/mipmap-xxhdpi/ic_launcher.png" \
-             "$RES/mipmap-xxhdpi/ic_launcher_round.png"
-
-          cp "$RES/mipmap-xxxhdpi/ic_launcher.png" \
-             "$RES/mipmap-xxxhdpi/ic_launcher_round.png"
-
-          echo "Ícone personalizado configurado."
-
-      # ============================================================
-      # 13. NOME DO APP
-      # ============================================================
-      - name: Configurar nome do aplicativo
-        run: |
-          set -e
-
-          mkdir -p android/app/src/main/res/values
-
-          cat > android/app/src/main/res/values/strings.xml <<'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <string name="app_name">Riquezas da África</string>
-              <string name="title_activity_main">Riquezas da África</string>
-              <string name="package_name">com.riquezasdaafrica.app</string>
-              <string name="custom_url_scheme">com.riquezasdaafrica.app</string>
-          </resources>
-          EOF
-
-      # ============================================================
-      # 14. CONFIGURAR MANIFEST
-      # ============================================================
-      - name: Configurar Android Manifest
-        shell: bash
-        run: |
-          set -e
-
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          path = Path("android/app/src/main/AndroidManifest.xml")
-          text = path.read_text()
-
-          text = re.sub(
-              r'\s+android:icon="[^"]*"',
-              '',
-              text
-          )
-
-          text = re.sub(
-              r'\s+android:roundIcon="[^"]*"',
-              '',
-              text
-          )
-
-          text = text.replace(
-              '<application',
-              '<application android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round"',
-              1
-          )
-
-          path.write_text(text)
-          PY
-
-      # ============================================================
-      # 15. GRADLE
-      # ============================================================
-      - name: Preparar Gradle
-        run: |
-          set -e
-
-          cd android
-
-          chmod +x gradlew
-
-          ./gradlew --version
-
-      # ============================================================
-      # 16. GERAR APK
-      # ============================================================
-      - name: Gerar APK
-        run: |
-          set -e
-
-          cd android
-
-          chmod +x gradlew
-
-          ./gradlew assembleDebug --no-daemon
-
-      # ============================================================
-      # 17. VALIDAR APK
-      # ============================================================
-      - name: Validar APK
-        shell: bash
-        run: |
-          set -e
-
-          APK=$(find android/app/build/outputs/apk/debug \
-            -type f \
-            -name "*.apk" | head -n 1)
-
-          if [ -z "$APK" ]; then
-            echo "ERRO: APK não encontrado."
+          # package.json é obrigatório
+          if [ ! -f package.json ]; then
+            echo "ERRO: package.json não encontrado na raiz."
             exit 1
           fi
 
-          echo "APK encontrado:"
-          ls -lh "$APK"
+          # Capacitor é obrigatório
+          if [ ! -f capacitor.config.json ]; then
+            echo "ERRO: capacitor.config.json não encontrado."
+            exit 1
+          fi
 
-      # ============================================================
-      # 18. PREPARAR APK FINAL
-      # ============================================================
-      - name: Preparar APK final
-        run: |
-          set -e
+          # O mapa precisa existir
+          if [ ! -f public/world-map.svg ]; then
+            echo "ERRO: public/world-map.svg não encontrado."
+            exit 1
+          fi
 
-          mkdir -p release
+          # Ícone precisa existir
+          if [ ! -f public/icons/icon-512.png ]; then
+            echo "ERRO: public/icons/icon-512.png não encontrado."
+            exit 1
+          fi
 
-          APK=$(find android/app/build/outputs/apk/debug \
-            -type f \
-            -name "*.apk" | head -n 1)
+          # A V9 enviada possui o index dentro de public.
+          if [ -f public/index.html ]; then
+            echo "index.html encontrado em public/."
+          elif [ -f index.html ]; then
+            echo "index.html encontrado na raiz."
+          else
+            echo "ERRO: nenhum index.html encontrado."
+            exit 1
+          fi
 
-          cp "$APK" \
-            "release/Riquezas-da-Africa-V9.apk"
-
-      # ============================================================
-      # 19. DISPONIBILIZAR APK
-      # ============================================================
-      - name: Enviar APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Riquezas-da-Africa-V9
-          path: release/Riquezas-da-Africa-V9.apk
-          if-no-files-found: error
+          echo ""
+          echo "Estrutura validada com sucesso."
